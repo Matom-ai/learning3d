@@ -48,7 +48,7 @@ curve_config = {
     }
 
 class CurveNet(nn.Module):
-    def __init__(self, num_classes=40, k=20, setting='default', input_shape="bnc"):
+    def __init__(self, num_classes=40, k=20, setting='default', input_shape="bnc", emb_dims=2048, classifier=True):
         super(CurveNet, self).__init__()
 
         if input_shape not in ["bcn", "bnc"]:
@@ -59,6 +59,7 @@ class CurveNet(nn.Module):
         assert setting in curve_config
 
         additional_channel = 32
+        self.classifier = classifier
         self.lpfa = LPFA(9, additional_channel, k=k, mlp_num=1, initial=True)
 
         # encoder
@@ -75,13 +76,15 @@ class CurveNet(nn.Module):
         self.cic42 = CIC(npoint=64, radius=0.4, k=k, in_channels=512, output_channels=512, bottleneck_ratio=4, mlp_num=1, curve_config=curve_config[setting][3])
 
         self.conv0 = nn.Sequential(
-            nn.Conv1d(512, 1024, kernel_size=1, bias=False),
-            nn.BatchNorm1d(1024),
+            nn.Conv1d(512, emb_dims//2, kernel_size=1, bias=False),
+            nn.BatchNorm1d(emb_dims//2),
             nn.ReLU(inplace=True))
-        self.conv1 = nn.Linear(1024 * 2, 512, bias=False)
-        self.conv2 = nn.Linear(512, num_classes)
-        self.bn1 = nn.BatchNorm1d(512)
-        self.dp1 = nn.Dropout(p=0.5)
+        
+        if self.classifier:
+            self.conv1 = nn.Linear(emb_dims, 512, bias=False)
+            self.conv2 = nn.Linear(512, num_classes)
+            self.bn1 = nn.BatchNorm1d(512)
+            self.dp1 = nn.Dropout(p=0.5)
 
     def forward(self, xyz):
         if self.input_shape == 'bnc':
@@ -106,7 +109,9 @@ class CurveNet(nn.Module):
         x_avg = F.adaptive_avg_pool1d(x, 1)
         
         x = torch.cat((x_max, x_avg), dim=1).squeeze(-1)
-        x = F.relu(self.bn1(self.conv1(x).unsqueeze(-1)), inplace=True).squeeze(-1)
-        x = self.dp1(x)
-        x = self.conv2(x)
+
+        if self.classifier:
+            x = F.relu(self.bn1(self.conv1(x).unsqueeze(-1)), inplace=True).squeeze(-1)
+            x = self.dp1(x)
+            x = self.conv2(x)
         return x
