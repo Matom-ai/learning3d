@@ -115,6 +115,7 @@ class Walk(nn.Module):
 
     def forward(self, xyz, x, adj, cur):
         bn, c, tot_points = x.size()
+        device = x.device
 
         # raw point coordinates
         xyz = xyz.transpose(1,2).contiguous # bs, n, 3
@@ -123,7 +124,6 @@ class Walk(nn.Module):
         x = x.transpose(1,2).contiguous() # bs, n, c
 
         flatten_x = x.view(bn * tot_points, -1)
-        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
         batch_offset = torch.arange(0, bn, device=device).detach() * tot_points
 
         # indices of neighbors for the starting points
@@ -133,6 +133,7 @@ class Walk(nn.Module):
         flatten_cur = (cur + batch_offset.view(-1,1,1)).view(-1)
 
         curves = []
+        flatten_curve_idxs = [flatten_cur.unsqueeze(1)]
 
         # one step at a time
         for step in range(self.curve_length):
@@ -191,8 +192,9 @@ class Walk(nn.Module):
 
             # collect curve progress
             curves.append(cur_feature)
+            flatten_curve_idxs.append(flatten_cur.unsqueeze(1))
 
-        return torch.cat(curves,dim=-1)
+        return torch.cat(curves,dim=-1), torch.cat(flatten_curve_idxs, dim=1)
 
 
 class Attention_block(nn.Module):
@@ -230,7 +232,6 @@ class LPFA(nn.Module):
     def __init__(self, in_channel, out_channel, k, mlp_num=2, initial=False):
         super(LPFA, self).__init__()
         self.k = k
-        self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
         self.initial = initial
 
         if not initial:
@@ -259,11 +260,12 @@ class LPFA(nn.Module):
 
     def group_feature(self, x, xyz, idx):
         batch_size, num_dims, num_points = x.size()
+        device = x.device
 
         if idx is None:
             idx = knn(xyz, k=self.k, add_one_to_k=True)[:,:,:self.k]  # (batch_size, num_points, k)
 
-        idx_base = torch.arange(0, batch_size, device=self.device).view(-1, 1, 1) * num_points
+        idx_base = torch.arange(0, batch_size, device=device).view(-1, 1, 1) * num_points
         idx = idx + idx_base
         idx = idx.view(-1)
 
@@ -412,10 +414,12 @@ class CIC(nn.Module):
 
         if self.use_curve:
             # curve grouping
-            curves = self.curvegrouping(x, xyz, idx[:,:,1:]) # avoid self-loop
+            curves, flatten_curve_idxs = self.curvegrouping(x, xyz, idx[:,:,1:]) # avoid self-loop
 
             # curve aggregation
             x = self.curveaggregation(x, curves)
+        else:
+            flatten_curve_idxs = None
 
         x = self.lpfa(x, xyz, idx=idx[:,:,:self.k]) #bs, c', n, k
 
@@ -425,7 +429,7 @@ class CIC(nn.Module):
             shortcut = self.shortcut(shortcut)
 
         x = self.relu(x + shortcut)
-        return xyz, x
+        return xyz, x, flatten_curve_idxs
 
 
 class CurveAggregation(nn.Module):
@@ -513,9 +517,9 @@ class CurveGrouping(nn.Module):
                                     sorted=False)
         start_index = start_index.squeeze(1).unsqueeze(2)
 
-        curves = self.walk(xyz, x, idx, start_index)  #bs, c, c_n, c_l
+        curves, flatten_curve_idxs = self.walk(xyz, x, idx, start_index)  #bs, c, c_n, c_l
         
-        return curves
+        return curves, flatten_curve_idxs
 
 
 class MaskedMaxPool(nn.Module):
