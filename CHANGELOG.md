@@ -1,5 +1,8 @@
 # CHANGELOG of LEARNING3D LIBRARY
 
+## v0.2.1 [28-06-2025-04:03:00]
+* Corrected learning3d logo path in ReadMe.
+
 ## v0.2.0 [01-05-2025-10:30:00]
 * Added CurveNet model.
 * Combined common utility functions.
