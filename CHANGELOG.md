@@ -1,5 +1,8 @@
 # CHANGELOG of LEARNING3D LIBRARY
 
+## v0.2.2 [28-06-2025-04:11:00]
+* Commented pycuda package in requirements.txt file.
+
 ## v0.2.1 [28-06-2025-04:03:00]
 * Corrected learning3d logo path in ReadMe.
 
