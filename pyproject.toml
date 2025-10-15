@@ -23,9 +23,6 @@ license = {file = "LICENSE"}
 keywords = ["Point Clouds", "Deep Learning", "3D Vision", "Point Cloud Registration", "Point Cloud Classification", "Point Cloud Segmentation"]
 dynamic = ["dependencies"]
 
-[tool.setuptools.packages.find]
-where = ["learning3d"]
-
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
 
