@@ -1,23 +1,23 @@
-from .svd import SVDHead
-from .transformer import Transformer, Identity
-from .ppfnet_util import angle_difference, square_distance, index_points, farthest_point_sample, query_ball_point, sample_and_group, sample_and_group_multi
-from .pointconv_util import PointConvDensitySetAbstraction
+from .curvenet_util import CIC, LPFA
+from .lib import pointnet2_utils
 from .model_common_utils import (
-	knn,
-	pc_normalize,
-	square_distance,
-	index_points,
-	farthest_point_sample,
-	knn_point,
-	query_ball_point,
-	get_graph_feature
+    get_graph_feature,
+    index_points,
+    knn,
+    knn_point,
+    pc_normalize,
+    query_ball_point,
+    square_distance,
 )
-from .curvenet_util import (
-	LPFA,
-	CIC,
+from .pointconv_util import PointConvDensitySetAbstraction
+from .ppfnet_util import (
+    angle_difference,
+    farthest_point_sample,
+    index_points,
+    query_ball_point,
+    sample_and_group,
+    sample_and_group_multi,
+    square_distance,
 )
-
-try:
-	from .lib import pointnet2_utils
-except:
-	print("Error raised in pointnet2 module in utils!\nEither don't use pointnet2_utils or retry it's setup.")
+from .svd import SVDHead
+from .transformer import Identity, Transformer
